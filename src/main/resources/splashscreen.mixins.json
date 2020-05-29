@@ -3,10 +3,12 @@
   "minVersion": "0.8",
   "package": "io.github.lmvdz.mixin",
   "compatibilityLevel": "JAVA_8",
-  "mixins": [],
-  "client": [
+  "mixins": [
     "MinecraftClientMixin",
     "SplashScreenMixin"
+  ],
+  "client": [
+
   ],
   "injectors": {
     "defaultRequire": 1

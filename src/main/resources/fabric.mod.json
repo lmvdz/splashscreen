@@ -18,13 +18,11 @@
 
   "environment": "*",
   "entrypoints": {
-    "main": [
-      "io.github.lmvdz.SplashScreenMod"
+    "client": [
+      "io.github.lmvdz.client.SplashScreenClientMod"
     ]
   },
-  "mixins": [
-    "splashscreen.mixins.json"
-  ],
+  "mixins": ["splashscreen.client.mixins.json"],
 
   "depends": {
     "fabricloader": ">=0.7.4",

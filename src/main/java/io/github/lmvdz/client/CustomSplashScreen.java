@@ -1,0 +1,176 @@
+package io.github.lmvdz.client;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Overlay;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.resource.ResourceReloadMonitor;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.Util;
+import net.minecraft.util.math.MathHelper;
+
+public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTexture {
+
+    public Identifier defaultLogo;
+    public Identifier currentLogo;
+    public final List<Identifier> logos;
+    public int logoIndex = 0;
+    public boolean loop;
+    public final MinecraftClient client;
+    public final ResourceReloadMonitor reloadMonitor;
+    public final Consumer<Optional<Throwable>> exceptionHandler;
+    public final boolean reloading;
+    public float progress;
+    public long applyCompleteTime = -1L;
+    public long prepareCompleteTime = -1L;
+
+    public CustomSplashScreen(MinecraftClient client, ResourceReloadMonitor monitor,
+            Consumer<Optional<Throwable>> exceptionHandler, boolean reloading,
+            Identifier defaultLogo, List<Identifier> logos) {
+        this.client = client;
+        this.reloadMonitor = monitor;
+        this.exceptionHandler = exceptionHandler;
+        this.reloading = reloading;
+        this.defaultLogo = defaultLogo;
+        this.currentLogo = defaultLogo;
+        this.logos = logos == null ? new ArrayList<>() : logos;
+        this.loop = false;
+        registerTexture(client);
+        for (int x = 0; x < this.logos.size(); x++) {
+            CustomLogoTexture.logoTextures.computeIfAbsent(this.logos.get(x),
+                    logoToCreate -> new CustomLogoTexture(logoToCreate));
+        }
+        CustomSplashScreenManagerCallback.EVENT.invoker().customSplashScreenCreated(this);
+    }
+
+
+
+    @Override
+    public CustomLogoTexture getLogoTexture() {
+        return CustomLogoTexture.getLogoTexture(this.getLogo());
+    }
+
+    public void registerTexture(MinecraftClient client) {
+        client.getTextureManager().registerTexture(this.getLogo(), this.getLogoTexture());
+    }
+
+    public void render(int mouseX, int mouseY, float delta, Identifier logo) {
+
+        if (logo == defaultLogo) {
+            SplashScreenClientMod.SoundManagerInstance.play(PositionedSoundInstance
+                    .master(SplashScreenClientMod.MOJANG_SPLASH_SOUND_EVENT, .5F));
+        }
+
+        int i = client.getWindow().getScaledWidth();
+        int j = client.getWindow().getScaledHeight();
+        long l = Util.getMeasuringTimeMs();
+        if (this.reloading
+                && (this.reloadMonitor.isPrepareStageComplete() || client.currentScreen != null)
+                && this.prepareCompleteTime == -1L) {
+            this.prepareCompleteTime = l;
+        }
+
+        float f = this.applyCompleteTime > -1L ? (float) (l - this.applyCompleteTime) / 1000.0F
+                : -1.0F;
+        float g = this.prepareCompleteTime > -1L ? (float) (l - this.prepareCompleteTime) / 500.0F
+                : -1.0F;
+        float o;
+        int m;
+        if (f >= 1.0F) {
+            if (client.currentScreen != null) {
+                client.currentScreen.render(0, 0, delta);
+            }
+
+            m = MathHelper.ceil((1.0F - MathHelper.clamp(f - 1.0F, 0.0F, 1.0F)) * 255.0F);
+            fill(0, 0, i, j, 16777215 | m << 24);
+            o = 1.0F - MathHelper.clamp(f - 1.0F, 0.0F, 1.0F);
+        } else if (this.reloading) {
+            if (client.currentScreen != null && g < 1.0F) {
+                client.currentScreen.render(mouseX, mouseY, delta);
+            }
+
+            m = MathHelper.ceil(MathHelper.clamp((double) g, 0.15D, 1.0D) * 255.0D);
+            fill(0, 0, i, j, 16777215 | m << 24);
+            o = MathHelper.clamp(g, 0.0F, 1.0F);
+        } else {
+            fill(0, 0, i, j, -1);
+            o = 1.0F;
+        }
+
+        m = (client.getWindow().getScaledWidth() - 256) / 2;
+        int q = (client.getWindow().getScaledHeight() - 256) / 2;
+        client.getTextureManager().bindTexture(logo);
+        RenderSystem.enableBlend();
+        RenderSystem.color4f(1.0F, 1.0F, 1.0F, o);
+        this.blit(m, q, 0, 0, 256, 256);
+        float r = this.reloadMonitor.getProgress();
+        this.progress = MathHelper.clamp(this.progress * 0.95F + r * 0.050000012F, 0.0F, 1.0F);
+        if (f < 1.0F) {
+            renderProgressBar(this.progress, i / 2 - 150, j / 4 * 3, i / 2 + 150, j / 4 * 3 + 10,
+                    1.0F - MathHelper.clamp(f, 0.0F, 1.0F));
+        }
+
+        if (f >= 2.0F) {
+            client.setOverlay((Overlay) null);
+        }
+
+        if (this.applyCompleteTime == -1L && this.reloadMonitor.isApplyStageComplete()
+                && (!this.reloading || g >= 2.0F)) {
+            try {
+                this.reloadMonitor.throwExceptions();
+                this.exceptionHandler.accept(Optional.empty());
+            } catch (Throwable var15) {
+                this.exceptionHandler.accept(Optional.of(var15));
+            }
+
+            this.applyCompleteTime = Util.getMeasuringTimeMs();
+            if (client.currentScreen != null) {
+                client.currentScreen.init(client, client.getWindow().getScaledWidth(),
+                        client.getWindow().getScaledHeight());
+            }
+        }
+    }
+
+    public static void renderProgressBar(float currentProgress, int minX, int minY, int maxX,
+            int maxY, float progress) {
+        int i = MathHelper.ceil((float) (maxX - minX - 1) * currentProgress);
+        fill(minX - 1, minY - 1, maxX + 1, maxY + 1,
+                -16777216 | Math.round((1.0F - progress) * 255.0F) << 16
+                        | Math.round((1.0F - progress) * 255.0F) << 8
+                        | Math.round((1.0F - progress) * 255.0F));
+        fill(minX, minY, maxX, maxY, -1);
+        fill(minX + 1, minY + 1, minX + i, maxY - 1,
+                -16777216 | (int) MathHelper.lerp(1.0F - progress, 226.0F, 255.0F) << 16
+                        | (int) MathHelper.lerp(1.0F - progress, 40.0F, 255.0F) << 8
+                        | (int) MathHelper.lerp(1.0F - progress, 55.0F, 255.0F));
+    }
+
+    @Override
+    public void render(int mouseX, int mouseY, float delta) {
+        render(mouseX, mouseY, delta, this.getLogo());
+        if (logos.size() > 0)
+            this.logoIndex++;
+    }
+
+    @Override
+    public Identifier getLogo() {
+        if (logos.size() == 0)
+            return this.currentLogo;
+        if (this.logoIndex < 0) {
+            this.logoIndex = 0;
+        } else if (this.logoIndex >= logos.size()) {
+            if (this.loop)
+                this.logoIndex = 0;
+            else
+                this.logoIndex = logos.size() - 1;
+        }
+        return logos.get(this.logoIndex);
+    }
+}
