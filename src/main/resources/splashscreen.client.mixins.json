@@ -10,7 +10,9 @@
         "SplashScreenAccess",
         "SplashScreenMixin",
         "SoundManagerAccess",
-        "SoundManagerMixin"
+        "SoundManagerMixin",
+        "SoundSystemAccess",
+        "GameOptionsMixin"
     ],
     "injectors": {
         "defaultRequire": 1

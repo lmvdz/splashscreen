@@ -6,10 +6,13 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-
+import io.github.lmvdz.client.mixin.SoundManagerAccess;
+import io.github.lmvdz.client.mixin.SoundSystemAccess;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Overlay;
+import net.minecraft.client.sound.Channel;
 import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.client.sound.SoundEngine;
 import net.minecraft.resource.ResourceReloadMonitor;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
@@ -23,6 +26,8 @@ public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTex
     public final List<Identifier> logos;
     public int logoIndex = 0;
     public boolean loop;
+    public boolean canRenderNext;
+    public boolean firstRender;
     public final MinecraftClient client;
     public final ResourceReloadMonitor reloadMonitor;
     public final Consumer<Optional<Throwable>> exceptionHandler;
@@ -41,7 +46,9 @@ public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTex
         this.defaultLogo = defaultLogo;
         this.currentLogo = defaultLogo;
         this.logos = logos == null ? new ArrayList<>() : logos;
+        this.canRenderNext = false;
         this.loop = false;
+        this.firstRender = true;
         registerTexture(client);
         for (int x = 0; x < this.logos.size(); x++) {
             CustomLogoTexture.logoTextures.computeIfAbsent(this.logos.get(x),
@@ -62,10 +69,21 @@ public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTex
     }
 
     public void render(int mouseX, int mouseY, float delta, Identifier logo) {
-
-        if (logo == defaultLogo) {
-            SplashScreenClientMod.SoundManagerInstance.play(PositionedSoundInstance
-                    .master(SplashScreenClientMod.MOJANG_SPLASH_SOUND_EVENT, .5F));
+        if (firstRender) {
+            this.firstRender = false;
+            this.canRenderNext = true;
+            ((SoundSystemAccess) ((SoundManagerAccess) SplashScreenClientMod.SoundManagerInstance)
+                    .getSoundSystem()).getSoundLoader()
+                            .loadStreamed(SplashScreenClientMod.MOJANG_SPLASH_SOUND.getLocation())
+                            .thenAccept(streamedSound -> {
+                                ((SoundSystemAccess) ((SoundManagerAccess) SplashScreenClientMod.SoundManagerInstance)
+                                        .getSoundSystem()).getChannel()
+                                                .createSource(SoundEngine.RunMode.STREAMING)
+                                                .run((source) -> {
+                                                    source.setStream(streamedSound);
+                                                    source.play();
+                                                });
+                            });
         }
 
         int i = client.getWindow().getScaledWidth();
@@ -79,6 +97,7 @@ public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTex
 
         float f = this.applyCompleteTime > -1L ? (float) (l - this.applyCompleteTime) / 1000.0F
                 : -1.0F;
+        // System.out.println(f);
         float g = this.prepareCompleteTime > -1L ? (float) (l - this.prepareCompleteTime) / 500.0F
                 : -1.0F;
         float o;
@@ -103,13 +122,12 @@ public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTex
             fill(0, 0, i, j, -1);
             o = 1.0F;
         }
-
-        m = (client.getWindow().getScaledWidth() - 256) / 2;
-        int q = (client.getWindow().getScaledHeight() - 256) / 2;
         client.getTextureManager().bindTexture(logo);
         RenderSystem.enableBlend();
         RenderSystem.color4f(1.0F, 1.0F, 1.0F, o);
-        this.blit(m, q, 0, 0, 256, 256);
+        blit(0, 0, 0F, 0F, client.getWindow().getWidth(), client.getWindow().getHeight(),
+                (1920 / 1080) * client.getWindow().getScaledWidth(),
+                (1920 / 1080) * client.getWindow().getScaledHeight());
         float r = this.reloadMonitor.getProgress();
         this.progress = MathHelper.clamp(this.progress * 0.95F + r * 0.050000012F, 0.0F, 1.0F);
         if (f < 1.0F) {
@@ -155,8 +173,10 @@ public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTex
     @Override
     public void render(int mouseX, int mouseY, float delta) {
         render(mouseX, mouseY, delta, this.getLogo());
-        if (logos.size() > 0)
-            this.logoIndex++;
+        if (logos.size() > 0 && canRenderNext) {
+            this.logoIndex += (int) Math.round((double) logos.size() / (double) 128);
+            // this.logoIndex += 1;
+        }
     }
 
     @Override
