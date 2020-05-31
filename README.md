@@ -1,5 +1,7 @@
 # Splash Screen Mod - Fabric
 
+![Demo](https://github.com/lmvdz/splashscreen/blob/master/SplashScreen-Mod.gif)
+
 ```java
 // Use CustomSplashScreenManager.register to register your CustomSplashScreen.
 // CustomSplashScreenManager.register(Identifier id, int numberOfFrames, Sound s);
