@@ -7,10 +7,16 @@ import net.minecraft.util.Identifier;
 public class SplashScreenClientMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        /**
+         * register custom splash screen with sound
+         */
         // CustomSplashScreenManager.register(
         // new Identifier("splashscreen", "textures/gui/splash/mojang/mp4/splash_0.png"), 251,
         // new Sound("splashscreen:mojang_splash", 1.0F, 1.0F, 1, Sound.RegistrationType.FILE,
         // true, true, 16));
+        /**
+         * register custom splash screen without sound.
+         */
         CustomSplashScreenManager.register(
                 new Identifier("splashscreen", "textures/gui/splash/mojang/mp4/splash_0.png"), 251);
 
