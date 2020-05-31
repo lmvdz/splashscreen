@@ -3,18 +3,18 @@
   "id": "splashscreen",
   "version": "${version}",
 
-  "name": "Example Mod",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "name": "Splash Screen Mod",
+  "description": "This mod allows for custom splash screens. With one single line of code you can assign a custom splash screen.",
   "authors": [
-    "Me!"
+    "lmvdz"
   ],
   "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "homepage": "https://github.com/lmvdz/splashscreen",
+    "sources": "https://github.com/lmvdz/splashscreen"
   },
 
   "license": "CC0-1.0",
-  "icon": "assets/splashscreen/icon.png",
+  "icon": "assets/splashscreen/splashscreen.png",
 
   "environment": "*",
   "entrypoints": {
