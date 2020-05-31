@@ -59,9 +59,16 @@ public class CustomSplashScreen extends Overlay {
         }
     }
 
-	public List<Identifier> getLogoTextureIdentifiers() {
-		return this.logos;
-	}
+    public CustomSplashScreen(MinecraftClient client, ResourceReloadMonitor monitor,
+            Consumer<Optional<Throwable>> exceptionHandler, boolean reloading,
+            Identifier defaultLogo, List<Identifier> logos) {
+        this(client, monitor, exceptionHandler, reloading, defaultLogo, logos, null);
+    }
+
+
+    public List<Identifier> getLogoTextureIdentifiers() {
+        return this.logos;
+    }
 
     public CustomLogoTexture getCurrentLogoTexture() {
         return CustomLogoTexture.getLogoTexture(this.getCurrentLogo());
@@ -82,19 +89,18 @@ public class CustomSplashScreen extends Overlay {
             this.canRenderNext = true;
             if (splashSound != null) {
                 ((SoundSystemAccess) ((SoundManagerAccess) CustomSplashScreenManager.SoundManagerInstance)
-                    .getSoundSystem()).getSoundLoader()
-                            .loadStreamed(splashSound.getLocation())
-                            .thenAccept(streamedSound -> {
-                                ((SoundSystemAccess) ((SoundManagerAccess) CustomSplashScreenManager.SoundManagerInstance)
-                                        .getSoundSystem()).getChannel()
-                                                .createSource(SoundEngine.RunMode.STREAMING)
-                                                .run((source) -> {
-                                                    source.setStream(streamedSound);
-                                                    source.play();
-                                                });
-                            });
+                        .getSoundSystem()).getSoundLoader().loadStreamed(splashSound.getLocation())
+                                .thenAccept(streamedSound -> {
+                                    ((SoundSystemAccess) ((SoundManagerAccess) CustomSplashScreenManager.SoundManagerInstance)
+                                            .getSoundSystem()).getChannel()
+                                                    .createSource(SoundEngine.RunMode.STREAMING)
+                                                    .run((source) -> {
+                                                        source.setStream(streamedSound);
+                                                        source.play();
+                                                    });
+                                });
             }
-            
+
         }
 
         int i = client.getWindow().getScaledWidth();
@@ -213,11 +219,11 @@ public class CustomSplashScreen extends Overlay {
         return defaultLogo;
     }
 
-	public void reset(SplashScreen supplier) {
-        this.client = ((SplashScreenAccess)supplier).getClient();
-        this.reloadMonitor = ((SplashScreenAccess)supplier).getReloadMonitor();
-        this.exceptionHandler = ((SplashScreenAccess)supplier).getExceptionHandler();
-        this.reloading = ((SplashScreenAccess)supplier).isReloading();
+    public void reset(SplashScreen supplier) {
+        this.client = ((SplashScreenAccess) supplier).getClient();
+        this.reloadMonitor = ((SplashScreenAccess) supplier).getReloadMonitor();
+        this.exceptionHandler = ((SplashScreenAccess) supplier).getExceptionHandler();
+        this.reloading = ((SplashScreenAccess) supplier).isReloading();
         this.currentLogo = this.defaultLogo;
         this.canRenderNext = false;
         this.firstRender = true;
@@ -226,5 +232,5 @@ public class CustomSplashScreen extends Overlay {
         this.prepareCompleteTime = -1L;
         this.progress = 0;
         this.client.overlay = this;
-	}
+    }
 }

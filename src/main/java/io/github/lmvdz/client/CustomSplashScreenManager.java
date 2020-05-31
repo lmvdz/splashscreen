@@ -35,7 +35,7 @@ public class CustomSplashScreenManager implements SplashScreenRenderCallback,
     public static boolean injectCustomSplashScreen = true;
     public static Identifier activeSplashScreenIdentifier;
     public MinecraftClient client = MinecraftClient.getInstance();
-    
+
     public static void setActiveSplashScreen(Identifier id) {
         activeSplashScreenIdentifier = id;
     }
@@ -48,20 +48,24 @@ public class CustomSplashScreenManager implements SplashScreenRenderCallback,
         splashScreens.put(id, null);
         List<Identifier> logos = new ArrayList<>(numberOfLogoTextures);
         for (int x = 0; x < numberOfLogoTextures; x++) {
-            logos.add(x,
-                    new Identifier(id.getNamespace(),
-                    id.getPath().replace("_0", "_" + x)));
+            logos.add(x, new Identifier(id.getNamespace(), id.getPath().replace("_0", "_" + x)));
         }
         splashScreenLogos.put(id, logos);
         splashScreenSounds.put(id, s);
-        activeSplashScreenIdentifier = (activeSplashScreenIdentifier == null) ? id : activeSplashScreenIdentifier;        
+        activeSplashScreenIdentifier =
+                (activeSplashScreenIdentifier == null) ? id : activeSplashScreenIdentifier;
+    }
+
+    public static void register(Identifier id, int numberOfLogoTextures) {
+        register(id, numberOfLogoTextures, null);
     }
 
     @Override
     public void onRender(SplashScreen splashScreen, int mouseX, int mouseY, float delta,
             Consumer<Boolean> cancel) {
         if (activeSplashScreenIdentifier != null) {
-            CustomSplashScreen activeCustomSplashScreen = splashScreens.get(activeSplashScreenIdentifier);
+            CustomSplashScreen activeCustomSplashScreen =
+                    splashScreens.get(activeSplashScreenIdentifier);
             if (injectCustomSplashScreen && client != null && activeCustomSplashScreen != null) {
                 cancel.accept(true);
                 if (activeCustomSplashScreen.client.overlay != activeCustomSplashScreen) {
@@ -76,12 +80,10 @@ public class CustomSplashScreenManager implements SplashScreenRenderCallback,
     }
 
     /**
-     * When a new SplashScreen() is created.
-     * Compute CustomSplashScreen
+     * When a new SplashScreen() is created. Compute CustomSplashScreen
      */
     @Override
     public void onNewSplashScreen(SplashScreen splashScreen) {
-        System.out.println("new splash screen");
         computeCustomSplashScreensIfAbsent(splashScreen);
         resetActiveCustomSplashScreen(splashScreen);
     }
@@ -103,7 +105,8 @@ public class CustomSplashScreenManager implements SplashScreenRenderCallback,
                         ((SplashScreenAccess) (SplashScreen) splashScreen).getReloadMonitor(),
                         ((SplashScreenAccess) (SplashScreen) splashScreen).getExceptionHandler(),
                         ((SplashScreenAccess) (SplashScreen) splashScreen).isReloading(),
-                        keyToCreate, splashScreenLogos.get(keyToCreate), splashScreenSounds.get(keyToCreate))));
+                        keyToCreate, splashScreenLogos.get(keyToCreate),
+                        splashScreenSounds.get(keyToCreate))));
     }
 
     @Override
@@ -111,11 +114,16 @@ public class CustomSplashScreenManager implements SplashScreenRenderCallback,
         SoundManagerInstance = soundManager;
 
         splashScreenSounds.keySet().forEach(soundId -> {
-            splashScreenSounds.get(soundId).preload(((SoundManagerAccess) SoundManagerInstance).getSoundSystem());
+            Sound s = splashScreenSounds.get(soundId);
+            if (s != null) {
+                s.preload(((SoundManagerAccess) SoundManagerInstance).getSoundSystem());
+            }
         });
-
-        ((SoundSystemAccess) ((SoundManagerAccess) SoundManagerInstance).getSoundSystem())
-                .invokeStart();
+        if (!((SoundSystemAccess) ((SoundManagerAccess) SoundManagerInstance).getSoundSystem())
+                .isStarted()) {
+            ((SoundSystemAccess) ((SoundManagerAccess) SoundManagerInstance).getSoundSystem())
+                    .invokeStart();
+        }
 
     }
 

@@ -27,5 +27,8 @@ public interface SoundSystemAccess {
     Listener getListener();
 
     @Accessor
+    boolean isStarted();
+
+    @Accessor
     void setStarted(boolean started);
 }
