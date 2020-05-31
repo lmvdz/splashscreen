@@ -6,39 +6,42 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+
 import io.github.lmvdz.client.mixin.SoundManagerAccess;
 import io.github.lmvdz.client.mixin.SoundSystemAccess;
+import io.github.lmvdz.client.mixin.SplashScreenAccess;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Overlay;
-import net.minecraft.client.sound.Channel;
-import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.client.gui.screen.SplashScreen;
+import net.minecraft.client.sound.Sound;
 import net.minecraft.client.sound.SoundEngine;
+import net.minecraft.client.texture.AbstractTexture;
 import net.minecraft.resource.ResourceReloadMonitor;
-import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.MathHelper;
 
-public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTexture {
+public class CustomSplashScreen extends Overlay {
 
     public Identifier defaultLogo;
     public Identifier currentLogo;
-    public final List<Identifier> logos;
+    public List<Identifier> logos;
+    public Sound splashSound;
     public int logoIndex = 0;
     public boolean loop;
     public boolean canRenderNext;
     public boolean firstRender;
-    public final MinecraftClient client;
-    public final ResourceReloadMonitor reloadMonitor;
-    public final Consumer<Optional<Throwable>> exceptionHandler;
-    public final boolean reloading;
+    public MinecraftClient client;
+    public ResourceReloadMonitor reloadMonitor;
+    public Consumer<Optional<Throwable>> exceptionHandler;
+    public boolean reloading;
     public float progress;
     public long applyCompleteTime = -1L;
     public long prepareCompleteTime = -1L;
 
     public CustomSplashScreen(MinecraftClient client, ResourceReloadMonitor monitor,
             Consumer<Optional<Throwable>> exceptionHandler, boolean reloading,
-            Identifier defaultLogo, List<Identifier> logos) {
+            Identifier defaultLogo, List<Identifier> logos, Sound splashSound) {
         this.client = client;
         this.reloadMonitor = monitor;
         this.exceptionHandler = exceptionHandler;
@@ -49,34 +52,40 @@ public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTex
         this.canRenderNext = false;
         this.loop = false;
         this.firstRender = true;
-        registerTexture(client);
+        this.splashSound = splashSound;
+        registerTexture(defaultLogo, getDefaultLogoTexture());
         for (int x = 0; x < this.logos.size(); x++) {
-            CustomLogoTexture.logoTextures.computeIfAbsent(this.logos.get(x),
-                    logoToCreate -> new CustomLogoTexture(logoToCreate));
+            registerTexture(this.logos.get(x), CustomLogoTexture.getLogoTexture(this.logos.get(x)));
         }
-        CustomSplashScreenManagerCallback.EVENT.invoker().customSplashScreenCreated(this);
     }
 
+	public List<Identifier> getLogoTextureIdentifiers() {
+		return this.logos;
+	}
 
-
-    @Override
-    public CustomLogoTexture getLogoTexture() {
-        return CustomLogoTexture.getLogoTexture(this.getLogo());
+    public CustomLogoTexture getCurrentLogoTexture() {
+        return CustomLogoTexture.getLogoTexture(this.getCurrentLogo());
     }
 
-    public void registerTexture(MinecraftClient client) {
-        client.getTextureManager().registerTexture(this.getLogo(), this.getLogoTexture());
+    public CustomLogoTexture getDefaultLogoTexture() {
+        return CustomLogoTexture.getLogoTexture(this.getDefaultLogo());
+    }
+
+    public void registerTexture(Identifier id, AbstractTexture texture) {
+        this.client.getTextureManager().registerTexture(id, texture);
     }
 
     public void render(int mouseX, int mouseY, float delta, Identifier logo) {
+        // play sound on first render
         if (firstRender) {
             this.firstRender = false;
             this.canRenderNext = true;
-            ((SoundSystemAccess) ((SoundManagerAccess) SplashScreenClientMod.SoundManagerInstance)
+            if (splashSound != null) {
+                ((SoundSystemAccess) ((SoundManagerAccess) CustomSplashScreenManager.SoundManagerInstance)
                     .getSoundSystem()).getSoundLoader()
-                            .loadStreamed(SplashScreenClientMod.MOJANG_SPLASH_SOUND.getLocation())
+                            .loadStreamed(splashSound.getLocation())
                             .thenAccept(streamedSound -> {
-                                ((SoundSystemAccess) ((SoundManagerAccess) SplashScreenClientMod.SoundManagerInstance)
+                                ((SoundSystemAccess) ((SoundManagerAccess) CustomSplashScreenManager.SoundManagerInstance)
                                         .getSoundSystem()).getChannel()
                                                 .createSource(SoundEngine.RunMode.STREAMING)
                                                 .run((source) -> {
@@ -84,6 +93,8 @@ public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTex
                                                     source.play();
                                                 });
                             });
+            }
+            
         }
 
         int i = client.getWindow().getScaledWidth();
@@ -172,15 +183,18 @@ public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTex
 
     @Override
     public void render(int mouseX, int mouseY, float delta) {
-        render(mouseX, mouseY, delta, this.getLogo());
-        if (logos.size() > 0 && canRenderNext) {
-            this.logoIndex += (int) Math.round((double) logos.size() / (double) 128);
-            // this.logoIndex += 1;
+        render(mouseX, mouseY, delta, this.getCurrentLogo());
+        if (canRenderNext) {
+            if (logos.size() >= 128) {
+                this.logoIndex += (int) Math.round((double) logos.size() / (double) 128);
+            } else if (logos.size() > 0) {
+                this.logoIndex++;
+            }
         }
     }
 
-    @Override
-    public Identifier getLogo() {
+
+    public Identifier getCurrentLogo() {
         if (logos.size() == 0)
             return this.currentLogo;
         if (this.logoIndex < 0) {
@@ -193,4 +207,24 @@ public class CustomSplashScreen extends Overlay implements IHasLogo, IHasLogoTex
         }
         return logos.get(this.logoIndex);
     }
+
+
+    public Identifier getDefaultLogo() {
+        return defaultLogo;
+    }
+
+	public void reset(SplashScreen supplier) {
+        this.client = ((SplashScreenAccess)supplier).getClient();
+        this.reloadMonitor = ((SplashScreenAccess)supplier).getReloadMonitor();
+        this.exceptionHandler = ((SplashScreenAccess)supplier).getExceptionHandler();
+        this.reloading = ((SplashScreenAccess)supplier).isReloading();
+        this.currentLogo = this.defaultLogo;
+        this.canRenderNext = false;
+        this.firstRender = true;
+        this.logoIndex = 0;
+        this.applyCompleteTime = -1L;
+        this.prepareCompleteTime = -1L;
+        this.progress = 0;
+        this.client.overlay = this;
+	}
 }

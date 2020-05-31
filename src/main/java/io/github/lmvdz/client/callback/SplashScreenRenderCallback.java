@@ -1,5 +1,5 @@
 
-package io.github.lmvdz.client;
+package io.github.lmvdz.client.callback;
 
 import java.util.function.Consumer;
 import net.fabricmc.fabric.api.event.Event;

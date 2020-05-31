@@ -3,75 +3,71 @@ package io.github.lmvdz.client;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
+
+import io.github.lmvdz.client.callback.SoundManagerCreatedCallback;
+import io.github.lmvdz.client.callback.SplashScreenCreatedCallback;
+import io.github.lmvdz.client.callback.SplashScreenRenderCallback;
+import io.github.lmvdz.client.mixin.SoundManagerAccess;
+import io.github.lmvdz.client.mixin.SoundSystemAccess;
 import io.github.lmvdz.client.mixin.SplashScreenAccess;
-import io.github.lmvdz.client.mixin.MinecraftClientAccess;
-import io.github.lmvdz.client.mixin.MinecraftClientMixin;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Overlay;
 import net.minecraft.client.gui.screen.SplashScreen;
-import net.minecraft.resource.ResourcePack;
-import net.minecraft.resource.ResourcePackProfile;
+import net.minecraft.client.sound.Sound;
+import net.minecraft.client.sound.SoundManager;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.Util;
 
 public class CustomSplashScreenManager implements SplashScreenRenderCallback,
-        SplashScreenCreatedCallback, MinecraftClientSetOverlayCallback {
+        SplashScreenCreatedCallback, SoundManagerCreatedCallback {
 
-    public static CustomSplashScreenManager INSTANCE;
+    public static final CustomSplashScreenManager INSTANCE = new CustomSplashScreenManager();
+    static {
+        SplashScreenCreatedCallback.EVENT.register(INSTANCE);
+        SplashScreenRenderCallback.EVENT.register(INSTANCE);
+        SoundManagerCreatedCallback.EVENT.register(INSTANCE);
+    }
+    public static SoundManager SoundManagerInstance;
 
     public static final HashMap<Identifier, CustomSplashScreen> splashScreens = new HashMap<>();
     public static final HashMap<Identifier, List<Identifier>> splashScreenLogos = new HashMap<>();
+    public static final HashMap<Identifier, Sound> splashScreenSounds = new HashMap<>();
 
     public static boolean injectCustomSplashScreen = true;
-    public static Identifier activeSplashScreen;
+    public static Identifier activeSplashScreenIdentifier;
     public MinecraftClient client = MinecraftClient.getInstance();
-
-    public CustomSplashScreenManager(Consumer<CustomSplashScreenManager> callback) {
-        callback.accept(this);
+    
+    public static void setActiveSplashScreen(Identifier id) {
+        activeSplashScreenIdentifier = id;
     }
 
-    public static void register(CustomSplashScreenManagerCallback objectToRegister, Identifier id,
-            List<Identifier> logos) {
-        splashScreens.put(id, null);
-        splashScreenLogos.put(id, logos);
-        CustomSplashScreenManagerCallback.EVENT.register(objectToRegister);
+    public static void setActiveSplashScreen(CustomSplashScreen css) {
+        activeSplashScreenIdentifier = css.defaultLogo;
     }
 
-    public static void register(CustomSplashScreenManagerCallback objectToRegister, Identifier id,
-            int frames) {
+    public static void register(Identifier id, int numberOfLogoTextures, Sound s) {
         splashScreens.put(id, null);
-        List<Identifier> logos = new ArrayList<>(frames);
-        for (int x = 0; x < frames; x++) {
+        List<Identifier> logos = new ArrayList<>(numberOfLogoTextures);
+        for (int x = 0; x < numberOfLogoTextures; x++) {
             logos.add(x,
                     new Identifier(id.getNamespace(),
-                            id.getPath().replace("frame_0.png", "frame_" + x + ".png")
-                                    .replace("splash_0.png", "splash_" + x + ".png")));
+                    id.getPath().replace("_0", "_" + x)));
         }
         splashScreenLogos.put(id, logos);
-        CustomSplashScreenManagerCallback.EVENT.register(objectToRegister);
-    }
-
-    public static void register(CustomSplashScreenManagerCallback objectToRegister, Identifier id) {
-        splashScreens.put(id, null);
-        splashScreenLogos.put(id, null);
-        CustomSplashScreenManagerCallback.EVENT.register(objectToRegister);
+        splashScreenSounds.put(id, s);
+        activeSplashScreenIdentifier = (activeSplashScreenIdentifier == null) ? id : activeSplashScreenIdentifier;        
     }
 
     @Override
     public void onRender(SplashScreen splashScreen, int mouseX, int mouseY, float delta,
             Consumer<Boolean> cancel) {
-        if (activeSplashScreen != null) {
-            CustomSplashScreen cSplashScreen = splashScreens.get(activeSplashScreen);
-            if (injectCustomSplashScreen && client != null && cSplashScreen != null) {
+        if (activeSplashScreenIdentifier != null) {
+            CustomSplashScreen activeCustomSplashScreen = splashScreens.get(activeSplashScreenIdentifier);
+            if (injectCustomSplashScreen && client != null && activeCustomSplashScreen != null) {
                 cancel.accept(true);
-                if (client.overlay != cSplashScreen) {
-                    client.overlay = cSplashScreen;
+                if (activeCustomSplashScreen.client.overlay != activeCustomSplashScreen) {
+                    activeCustomSplashScreen.client.overlay = activeCustomSplashScreen;
                 }
-                cSplashScreen.render(mouseX, mouseY, delta);
+                activeCustomSplashScreen.render(mouseX, mouseY, delta);
             }
         } else {
             computeCustomSplashScreensIfAbsent(splashScreen);
@@ -79,31 +75,24 @@ public class CustomSplashScreenManager implements SplashScreenRenderCallback,
         }
     }
 
+    /**
+     * When a new SplashScreen() is created.
+     * Compute CustomSplashScreen
+     */
     @Override
     public void onNewSplashScreen(SplashScreen splashScreen) {
-        if (activeSplashScreen != null) {
-            CustomSplashScreen activeCustomSplashScreen = splashScreens.get(activeSplashScreen);
-            if (injectCustomSplashScreen && client != null) {
-                if (activeCustomSplashScreen != null) {
-                    Identifier key = activeCustomSplashScreen.defaultLogo;
-                    List<Identifier> logos = splashScreenLogos.get(key);
-                    splashScreens.put(key, new CustomSplashScreen(
-                            ((SplashScreenAccess) (SplashScreen) splashScreen).getClient(),
-                            ((SplashScreenAccess) (SplashScreen) splashScreen).getReloadMonitor(),
-                            ((SplashScreenAccess) (SplashScreen) splashScreen)
-                                    .getExceptionHandler(),
-                            ((SplashScreenAccess) (SplashScreen) splashScreen).isReloading(), key,
-                            logos));
-                    activeCustomSplashScreen = splashScreens.get(key);
-                    if (client.overlay != activeCustomSplashScreen) {
-                        client.overlay = activeCustomSplashScreen;
-                    }
-                } else {
-                    computeCustomSplashScreensIfAbsent(splashScreen);
-                }
+        System.out.println("new splash screen");
+        computeCustomSplashScreensIfAbsent(splashScreen);
+        resetActiveCustomSplashScreen(splashScreen);
+    }
+
+    public void resetActiveCustomSplashScreen(SplashScreen supplier) {
+        if (activeSplashScreenIdentifier != null) {
+            CustomSplashScreen css = splashScreens.get(activeSplashScreenIdentifier);
+            if (css != null) {
+                css.reset(supplier);
+                splashScreens.put(activeSplashScreenIdentifier, css);
             }
-        } else {
-            computeCustomSplashScreensIfAbsent(splashScreen);
         }
     }
 
@@ -114,11 +103,19 @@ public class CustomSplashScreenManager implements SplashScreenRenderCallback,
                         ((SplashScreenAccess) (SplashScreen) splashScreen).getReloadMonitor(),
                         ((SplashScreenAccess) (SplashScreen) splashScreen).getExceptionHandler(),
                         ((SplashScreenAccess) (SplashScreen) splashScreen).isReloading(),
-                        keyToCreate, splashScreenLogos.get(keyToCreate))));
+                        keyToCreate, splashScreenLogos.get(keyToCreate), splashScreenSounds.get(keyToCreate))));
     }
 
     @Override
-    public void afterOverlaySet(Overlay o, Consumer<Boolean> cancel) {
+    public void soundManagerCreated(SoundManager soundManager) {
+        SoundManagerInstance = soundManager;
+
+        splashScreenSounds.keySet().forEach(soundId -> {
+            splashScreenSounds.get(soundId).preload(((SoundManagerAccess) SoundManagerInstance).getSoundSystem());
+        });
+
+        ((SoundSystemAccess) ((SoundManagerAccess) SoundManagerInstance).getSoundSystem())
+                .invokeStart();
 
     }
 

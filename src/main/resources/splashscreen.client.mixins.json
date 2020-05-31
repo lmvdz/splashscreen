@@ -6,13 +6,11 @@
     "mixins": [],
     "client": [
         "MinecraftClientAccess",
-        "MinecraftClientMixin",
-        "SplashScreenAccess",
-        "SplashScreenMixin",
         "SoundManagerAccess",
         "SoundManagerMixin",
         "SoundSystemAccess",
-        "GameOptionsMixin"
+        "SplashScreenAccess",
+        "SplashScreenMixin"
     ],
     "injectors": {
         "defaultRequire": 1

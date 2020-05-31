@@ -4,7 +4,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import io.github.lmvdz.client.SoundManagerCreatedCallback;
+import io.github.lmvdz.client.callback.SoundManagerCreatedCallback;
 import net.minecraft.client.sound.SoundManager;
 
 @Mixin(SoundManager.class)

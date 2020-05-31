@@ -1,4 +1,4 @@
-package io.github.lmvdz.client;
+package io.github.lmvdz.client.callback;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;

@@ -4,8 +4,8 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import io.github.lmvdz.client.SplashScreenCreatedCallback;
-import io.github.lmvdz.client.SplashScreenRenderCallback;
+import io.github.lmvdz.client.callback.SplashScreenCreatedCallback;
+import io.github.lmvdz.client.callback.SplashScreenRenderCallback;
 import net.minecraft.client.gui.screen.SplashScreen;
 
 
