@@ -7,8 +7,9 @@
 // CustomSplashScreenManager.register(Identifier id, int numberOfFrames);
 CustomSplashScreenManager.register(
     // create an identifier for the first image.
-    // currently there must only be one "_0" in the path part of the identifier.
-    // as all following images are computed based on this.
+    // the first image must be appended with "_0"
+    // currently there must only be one "_0" in the path part of the identifier. (this can be fixed)
+    // as all following images are computed based on this by replacing "_0" with "_1" and so forth.
     new Identifier(
         "splashscreen",
         "textures/gui/splash/mojang/mp4/splash_0.png"
